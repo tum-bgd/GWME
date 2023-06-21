@@ -1,2 +1,2 @@
 # GWMA
-Geographical Weighted Model Assemble (GWMA)
+Geographical Weighted Model Ensemble (GWME)
