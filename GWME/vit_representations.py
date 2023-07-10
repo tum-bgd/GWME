@@ -1,6 +1,7 @@
 # =======================================================================================================================================================
 # vit_representations.py
 # Author: Jiapan Wang
+# E-mail: jiapan.wang@tum.de
 # Created Date: 01/06/2023
 # Description: Inference of pre-trained DINO/ViT, and calculate attention weights.
 # =======================================================================================================================================================
@@ -79,19 +80,22 @@ def load_image_from_local(path, model_type):
     return image, preprocessed_image
 
 # # Load a model
-# download models
-# zip_path = tf.keras.utils.get_file(
-#     fname=FNAME,
-#     origin=GITHUB_RELEASE,
-# )
-
-# with zipfile.ZipFile(zip_path, "r") as zip_ref:
-#     zip_ref.extractall("./")
-
-# os.rename("Probing ViTs", "Probing_ViTs")
 
 
 def load_model(model_path: str) -> tf.keras.Model:
+    
+    if not os.path.exists("Probing_ViTs/"):
+        # download models
+        zip_path = tf.keras.utils.get_file(
+            fname=FNAME,
+            origin=GITHUB_RELEASE,
+        )
+
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall("./")
+
+        os.rename("Probing ViTs", "Probing_ViTs")
+
     with zipfile.ZipFile(model_path, "r") as zip_ref:
         zip_ref.extractall("Probing_ViTs/")
     model_name = model_path.split(".")[0]

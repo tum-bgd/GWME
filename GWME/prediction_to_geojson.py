@@ -1,6 +1,7 @@
 # =======================================================================================================================================================
 # prediction_to_geojson.py
 # Author: Jiapan Wang
+# E-mail: jiapan.wang@tum.de
 # Created Date: 02/06/2023
 # Description: Convert prediction from image to geojson.
 # =======================================================================================================================================================
@@ -91,10 +92,10 @@ def save_dict_to_geojson(dictionary, out_path):
 def merge_all_geojson_to_one(input_dir):
     
     file_list = os.listdir(input_dir)
-    print(file_list)
+    # print(file_list)
    
     merge = list()
-    
+    print("start merging geojson ...")
     for file in file_list:
         input_path = os.path.join(input_dir, file)
         print(input_path)

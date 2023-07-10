@@ -1,6 +1,7 @@
 # =======================================================================================================================================================
 # inference_main.py
 # Author: Jiapan Wang
+# E-mail: jiapan.wang@tum.de
 # Created Date: 26/05/2023
 # Description: inference test images with the trained object detection model, save detection images and detection bbox as geojson format.
 # =======================================================================================================================================================
@@ -9,7 +10,14 @@ Args:
     image_path: Path to images folder.
     model_path: Path to saved model.
     label_path: Path to label map.
-    output_dir: Path to inference results.
+    output_path: Path to inference results.
+
+Usage Case:
+    python inference_main.py \
+            --image_path="./cameroon/images/test2/" \
+            --model_path="./cameroon/exported-models/my-model-02/saved_model/" \
+            --label_path="./cameroon/annotations/label_map.pbtxt" \
+            --output_path="./cameroon/images/prediction2/"
 """
 
 from absl import app
@@ -36,7 +44,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("image_path", "images/test/", "Path to images folder.")
 flags.DEFINE_string("model_path", None, "Path to saved model.")
 flags.DEFINE_string("label_path", None, "Path to label map.")
-flags.DEFINR_string("output_dir", "./prediction/", "Path to results.")
+flags.DEFINE_string("output_path", "./prediction/", "Path to results.")
 
 flags.mark_flag_as_required('image_path')
 flags.mark_flag_as_required('model_path')
@@ -125,7 +133,7 @@ def detection_to_dictionary(task_id, boxes, classes, scores):
         
 #     print("pred_dict", pred_dict)
     
-    output_dir = FLAGS.output_dir + "/json"
+    output_dir = FLAGS.output_path + "/json"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -190,7 +198,7 @@ def main(argv):
     category_index = label_map_util.create_category_index_from_labelmap(FLAGS.label_path,
                                                                         use_display_name=True)
 
-    output_preview_path = FLAGS.output_dir + "/preview/"
+    output_preview_path = FLAGS.output_path + "/preview/"
     if not os.path.exists(output_preview_path):
         os.makedirs(output_preview_path)
 
@@ -266,10 +274,10 @@ def main(argv):
         print('Done')
     # plt.show()
 
-    input_dir = FLAGS.output_dir + "/json/"
+    input_dir = FLAGS.output_path + "/json/"
     geojson_all = merge_all_geojson_to_one(input_dir)
 
-    output_path = FLAGS.output_dir + "merged_prediction.geojson"
+    output_path = FLAGS.output_path + "merged_prediction.geojson"
     with open(output_path, 'w', encoding='utf-8') as output_file:
         geojson.dump(geojson_all, output_file)
 

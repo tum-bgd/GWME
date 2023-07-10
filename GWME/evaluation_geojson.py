@@ -1,9 +1,22 @@
 # =======================================================================================================================================================
 # evaluation_geojson.py
 # Author: Jiapan Wang
+# E-mail: jiapan.wang@tum.de
 # Created Date: 05/06/2023
 # Description: Evaluating predicted geojson objects and reference geojson objects.
 # =======================================================================================================================================================
+"""
+Args:
+    prediction_path: Path to prediction geojson path.
+    reference_path: Path to reference geojson path.
+    output_path: Path to evaluated geojson objects.
+
+Usage Case:
+    python evaluation_geojson.py \
+            --prediction_path="./case_study/cameroon/predictions/prediction-ensemble/merged_prediction_multi_heads_attention.geojson" \
+            --reference_path="./case_study/cameroon/reference/building_building_.geojson" \
+            --output_path="./case_study/cameroon/evaluation/"
+"""
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    # Suppress TensorFlow logging (1)
@@ -15,6 +28,7 @@ from shapely.geometry import Polygon
 import geojson
 import time
 import pathlib
+from tqdm import tqdm
 
 from absl import app
 from absl import flags
@@ -23,9 +37,11 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_string("prediction_path", None, "Path to prediction geojson path.")
 flags.DEFINE_string("reference_path", None, "Path to reference geojson path.")
+flags.DEFINE_string("output_path", None, "Path to evaluated geojson objects.")
 
 flags.mark_flag_as_required('prediction_path')
 flags.mark_flag_as_required('reference_path')
+flags.mark_flag_as_required('output_path')
 
 def load_path(dir_path):
     """list paths of all files under dir_path
@@ -114,20 +130,6 @@ def get_bbox(geometry):
     
     return bbox_polygon
 
-# def intersection_gdf(gdf1, gdf2):
-#     """find intersected geometry between two geo dataframe
-#     """
-    
-# #     intersection = gdf1.geometry.overlaps(gdf2.geometry, align=True)
-#     intersection_gdf = gpd.overlay(gdf1, gdf2, how='intersection')
-#     print("intersection: \n", intersection_gdf['properties_1'])
-    
-#     gdf1.plot()
-#     gdf2.plot()
-#     intersection_gdf.plot()
-    
-#     return intersection_gdf
-
 def calculate_IOU(box1, box2):
     """Calculate IOU between two boxes
     """
@@ -139,146 +141,6 @@ def calculate_IOU(box1, box2):
     iou = intersect_df.area / union_df.area
     
     return iou.iloc[0]
-
-
-# # calculate metrics precision, recall, accuracy, f1, MCC
-# def metrics_statistic(results):
-
-#     # print(len(results))
-#     tp = 0
-#     fp = 0
-#     fn = 0
-#     tn = 0
-#     total_pred = 0
-#     for tile_result in results:
-#         # print("tile id", tile_result['tile_id'])
-#         tp += tile_result['TP']
-#         fp += tile_result['FP']
-#         fn += tile_result['FN']
-#         total_pred += tile_result['total_pred']
-        
-#     precision = tp/total_pred 
-#     recall = tp/(tp+fn)
-#     f1 = 2*(precision*recall/(precision+recall))
-#     mcc = (tn * tp - fn * fp) / math.sqrt((tp + fp)*(tp + fn)*(tn + fp)*(tn + fn))
-#     accuracy = tp/(tp+fp+fn)
-#     print(f"metrics: TP = {tp}, FP = {fp}, FN = {fn}, total = {total_pred}, \nprecision = {precision}, recall = {recall}, f1 = {f1}, accuracy = {accuracy}")
-#     metrics = {
-#         "TP": tp,
-#         "FP": fp,
-#         "FN": fn,
-#         "total_pred": total_pred,
-#         "precision": precision,
-#         "accuracy": accuracy,
-#         "recall": recall,
-#         "f1": f1
-#     }
-
-#     return metrics
-
-# tile-based evaluation
-# def main_eval_tile(prediction_dir, reference_dir, FILTER_THRESHOLD, IOU_THRESHOLD, COVERAGE_THRESHOLD):
-
-#     # data dir
-#     # # attention
-#     # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_attention/"
-#     # # distance
-#     # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_distance/"
-#     # similarity
-#     # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_similarity/"
-#     # # average
-#     # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_average/"
-#     # single model
-#     # prediction_dir = "./ensemble/predictions/prediction-model-07/json/"
-#     # reference_dir = "./evaluation/reference/tile/"
-
-#     pred_geojson_paths = load_path(prediction_dir)
-#     ref_geojson_paths = load_path(reference_dir)
-
-#     results = []
-
-#     for i, pred_path in enumerate(pred_geojson_paths):
-        
-#         tile_id = os.path.splitext(os.path.basename(pred_path))[0]
-#         # print(f"{i} evaluation for ......", tile_id)
-#     #     i = 50
-#         pred_geojson = load_geojson(pred_geojson_paths[i])
-#         ref_geojson = load_geojson(ref_geojson_paths[i])
-
-#         filtered_pred_geojson = prediction_filter_by_score(pred_geojson, FILTER_THRESHOLD)
-
-#         # print("pred geojson:", len(filtered_pred_geojson['features']), filtered_pred_geojson)
-#         # print("ref geojson:", len(ref_geojson['features']), ref_geojson)
-
-#         pred_geodf = prediction_to_gdf(filtered_pred_geojson)
-#         ref_geodf = reference_to_gdf(ref_geojson)
-
-#     #     print("pred geodf: \n", pred_geodf)
-#     #     print("ref geodf: \n", ref_geodf)
-#         TP = 0
-        
-#         # intersction gdf
-#         if pred_geodf.shape[0] != 0 and ref_geodf.shape[0]!= 0:
-#             intersection_df = gpd.overlay(pred_geodf, ref_geodf, how='intersection')
-#             # print("intersection: \n", intersection_df)
-            
-#             # print("intersection from gdf1: \n", pred_geodf.loc[intersection_df['prediction_id']])
-#             # print("intersection from gdf2: \n", ref_geodf.loc[intersection_df['ref_id']])
-
-#             # print(type(pred_geodf.loc[intersect_df['prediction_id']]))
-
-#             # ax = ref_geodf.plot(linewidth = 2, color="white", edgecolor="green")
-#             # ax2 = pred_geodf.plot(ax=ax, color="red", linewidth = 1, alpha=0.5, edgecolor="red")
-#             # intersection_df.plot(ax = ax2, linewidth = 1, color="white", edgecolor="black")    
-
-#             for i, intersect in enumerate(intersection_df.itertuples()):
-#                 # print(f"intersect {i}======================================================================\n")
-#                 pred_id = intersect.prediction_id
-#                 ref_id = intersect.ref_id
-
-#                 pred_item = pred_geodf.loc[pred_geodf['prediction_id'] == pred_id]
-#                 ref_item = ref_geodf.loc[ref_geodf['ref_id'] == ref_id]
-#                 iou = calculate_IOU(pred_item, ref_item)
-
-#     #             print("iou:", iou)
-
-#             #     print("pred contain ref",intersect.geometry.area/pred_item.geometry.area)
-#             #     print("ref contain pred",intersect.geometry.area/ref_item.geometry.area)
-
-
-#                 if iou >= IOU_THRESHOLD:
-#                     pred_geodf.loc[pred_geodf['prediction_id'] == pred_id, 'if_correct'] = True #====> TP
-#                     ref_geodf.loc[ref_geodf['ref_id'] == ref_id,'if_detected'] = True #====> TP
-#                     TP += 1
-#                 #  no TP, but prediction mostly covered by the ref building
-#                 elif (intersect.geometry.area/pred_item.geometry.area).iloc[0] >= COVERAGE_THRESHOLD:
-#                     pred_geodf.loc[pred_geodf['prediction_id'] == pred_id, 'if_correct'] = True #====> TP
-#                     ref_geodf.loc[ref_geodf['ref_id'] == ref_id,'if_detected'] = True #====> TP
-#                     TP += 1
-
-#         total_pred = pred_geodf.shape[0]
-#         total_ref = ref_geodf.shape[0]
-
-#         FP = total_pred - TP
-#         FN = ref_geodf.loc[ref_geodf['if_detected'] == False].shape[0]
-
-#     #     print("pred geodf: \n", pred_geodf)
-#     #     print("ref geodf: \n", ref_geodf)   
-#         # print(f"metrics: TP = {TP}, FP = {FP}, FN = {FN}\n")
-
-
-#         tile_result = {
-#             "tile_id": tile_id,
-#             "total_pred": total_pred,
-#             "TP": TP,
-#             "FP": FP,
-#             "FN": FN
-#         }
-        
-#         results.append(tile_result)
-
-#     return results
-
 
 # evaluation for entire geojson
 def main_eval(prediction_path, reference_path, FILTER_THRESHOLD, IOU_THRESHOLD, COVERAGE_THRESHOLD):
@@ -302,19 +164,13 @@ def main_eval(prediction_path, reference_path, FILTER_THRESHOLD, IOU_THRESHOLD, 
     intersection_df = gpd.overlay(pred_geodf, ref_geodf, how='intersection')
     # print("intersection: \n", intersection_df)
 
-    for i, intersect in enumerate(intersection_df.itertuples()):
+    for i, intersect in enumerate(tqdm(intersection_df.itertuples())):
         pred_id = intersect.prediction_id
         ref_id = intersect.ref_id
 
         pred_item = pred_geodf.loc[pred_geodf['prediction_id'] == pred_id]
         ref_item = ref_geodf.loc[ref_geodf['ref_id'] == ref_id]
         iou = calculate_IOU(pred_item, ref_item)
-
-    #             print("iou:", iou)
-        # print(i, intersect)
-
-    #     print("pred contain ref",intersect.geometry.area/pred_item.geometry.area)
-    #     print("ref contain pred",intersect.geometry.area/ref_item.geometry.area)
 
         if iou >= IOU_THRESHOLD:
             pred_geodf.loc[pred_geodf['prediction_id'] == pred_id, 'if_correct'] = True #====> TP
@@ -325,13 +181,7 @@ def main_eval(prediction_path, reference_path, FILTER_THRESHOLD, IOU_THRESHOLD, 
             pred_geodf.loc[pred_geodf['prediction_id'] == pred_id, 'if_correct'] = True #====> TP
             ref_geodf.loc[ref_geodf['ref_id'] == ref_id,'if_detected'] = True #====> TP
             TP += 1
-        
-        # ax = ref_item.plot(linewidth = 2, color="white", edgecolor="green")
-        # ax2 = pred_item.plot(ax=ax, color="red", linewidth = 1, alpha=0.5, edgecolor="red")
-        
-        # print(pred_geodf.loc[pred_geodf['prediction_id'] == pred_id, 'if_correct'])
-        # print(ref_geodf.loc[ref_geodf['ref_id'] == ref_id,'if_detected'])
-    #     break
+    
 
     total_pred = pred_geodf.shape[0]
     total_ref = ref_geodf.shape[0]
@@ -361,81 +211,34 @@ def main_eval(prediction_path, reference_path, FILTER_THRESHOLD, IOU_THRESHOLD, 
     all_predictions_gdf = pd.concat([all_predictions_gdf, pred_geodf])
     all_ref_gdf = pd.concat([all_ref_gdf, ref_geodf])
 
-    all_predictions_gdf.to_file("./evaluation/all_predictions_eval_base.geojson", driver="GeoJSON")  
-    all_ref_gdf.to_file("./evaluation/all_reference_eval_base.geojson", driver="GeoJSON")    
+
+    if not os.path.exists(FLAGS.output_path):
+        os.makedirs(FLAGS.output_path)
+
+    all_predictions_gdf.to_file(FLAGS.output_path + "all_predictions_eval.geojson", driver="GeoJSON")  
+    all_ref_gdf.to_file(FLAGS.output_path + "all_reference_eval.geojson", driver="GeoJSON")    
 
     return result_metrics
 
-
-if __name__ == "__main__":
-
-    import csv
-    # data dir
-    # prediction_dir = "./ensemble/predictions/prediction-base-model/json/"
-    # # attention
-    # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_multi_heads_attention/"
-    # # distance
-    # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_distance/"
-    # similarity
-    # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_similarity/"
-    # # average
-    # prediction_dir = "./ensemble/predictions/prediction-ensemble/json_average_new/"
-    # single model
-    # prediction_dir = "./ensemble/predictions/prediction-model-09/json/"
-    # reference_dir = "./evaluation/reference/tile/"
-
-
-    # prediction_path = "./ensemble/predictions/prediction-ensemble/merged_prediction_multi_heads_attention.geojson"
-    # prediction_path = "./ensemble/predictions/prediction-ensemble/merged_prediction_distance.geojson"
-    # prediction_path = "./ensemble/predictions/prediction-ensemble/merged_prediction_similarity.geojson"
-    # prediction_path = "./ensemble/predictions/prediction-ensemble/merged_prediction_average_new.geojson"
-    # prediction_path = "./ensemble/predictions/prediction-model-06/merged_prediction.json"
-    # prediction_path = "./ensemble/predictions/prediction-base-model/merged_prediction.json"
-
-    # reference_path = "./evaluation/reference/building_building_.geojson"
-
+def main(argv):
+    
     prediction_path = FLAGS.prediction_path
     reference_path = FLAGS.reference_path
-
      
     print("start evaluating...")
     start_time = time.time()
 
-    # metrics path
-    output_file = "evaluation_matrix.csv"
-    header = ["Model", "IOU", "Filter", "TP", "FP", "FN", "predictions", "precision", "accuracy", "recall", "f1"]
-
-    # with open(output_file,"w") as file:
-    #     writer = csv.writer(file)
-    #     writer.writerow(header)
-
-
     # threshold
-    COVERAGE_THRESHOLD = 0.8 # if the ratio of intersection area to prediction area higher than this threshold, it means the prediction is mostly covered by reference
-    # IOU_range = np.arange(0.5, 0.8, 0.1)
-    IOU_range = [0.5]
-    # Filter_range = np.arange(0.04, 0.15, 0.01)
-    Filter_range = [0.1]
-    # print(IOU_range)
-    # print(Filter_range)
-    for IOU_THRESHOLD in IOU_range:
-        for FILTER_THRESHOLD in Filter_range:
-            print("Current evaluation threshold: ", IOU_THRESHOLD, FILTER_THRESHOLD)
+    COVERAGE_THRESHOLD = 0.5 # if the ratio of intersection area to prediction area higher than this threshold, it means the prediction is mostly covered by reference
+    IOU_THRESHOLD = 0.5
+    FILTER_THRESHOLD = 0.1
 
-            metrics = main_eval(prediction_path, reference_path, FILTER_THRESHOLD, IOU_THRESHOLD, COVERAGE_THRESHOLD)
-            # metrics = metrics_statistic(results)
+    metrics = main_eval(prediction_path, reference_path, FILTER_THRESHOLD, IOU_THRESHOLD, COVERAGE_THRESHOLD)
 
-            model = "base"
+    print(f"evaluation metrics:\n{metrics}")    
 
-            print("metrics: ", metrics)
-            data = [str(model), IOU_THRESHOLD, FILTER_THRESHOLD, metrics["TP"], metrics["FP"], metrics["FN"], metrics["total_pred"], metrics["precision"], metrics["accuracy"], metrics["recall"], metrics["f1"]]
-                            
-            # with open(output_file, "a") as file:
-            #     writer = csv.writer(file)
-            #     writer.writerow(data)
-        # file.write("{}  {:.2f}  {:.2f}  {}  {}  {}  {}  {:.4f}  {:.4f}  {:.4f}  {:.4f}  \n".format(
-        #     str(model), IOU_THRESHOLD, FILTER_THRESHOLD, metrics["TP"], metrics["FP"], metrics["FN"], metrics["total_pred"], metrics["precision"], metrics["accuracy"], metrics["recall"], metrics["f1"]
-        #     ))
-                
+    print("time used: {}".format(time.time() - start_time))
 
-            print("time used: {}".format(time.time() - start_time))
+if __name__ == '__main__':
+    app.run(main)
+    

@@ -1,9 +1,22 @@
 # =======================================================================================================================================================
 # calculate_weights.py
 # Author: Jiapan Wang
+# E-mail: jiapan.wang@tum.de
 # Created Date: 01/06/2023
 # Description: Calculate the weight of distance, image correlation and attention between the reference area and the target area.
 # =======================================================================================================================================================
+"""
+Args:
+    image_path: Path to reference images and target images.
+    vit_image_path: Path to vit sample images.
+    output_path: Path to output.
+
+Usage Case:
+    python calculate_weights.py \
+            --image_path="./case_study/cameroon/sample_images/" \
+            --vit_image_path="./case_study/cameroon/ViT_sample_images/"\
+            --output_path="./case_study/cameroon/weights/"
+"""
 
 from math import sin, cos, acos, atan2, radians, pi, atan, exp
 from sklearn.preprocessing import normalize
@@ -16,10 +29,22 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    # Suppress TensorFlow logging (1)
 import pathlib
 import random
 import json
+from tqdm import tqdm
 from merge_image_patch import merge_images
 from vit_representations import get_image_attention_weights, load_model, MODELS_ZIP
 
-IMAGE_DIR = './sample_images/'
+from absl import app
+from absl import flags
+
+FLAGS = flags.FLAGS
+
+flags.DEFINE_string("image_path", None, "Path to reference images and target images.")
+flags.DEFINE_string("vit_image_path", None, "Path to vit sample images.")
+flags.DEFINE_string("output_path", None, "Path to output.")
+
+flags.mark_flag_as_required('image_path')
+flags.mark_flag_as_required('vit_image_path')
+flags.mark_flag_as_required('output_path')
 
 def get_center_latlon(lon1, lat1, lon2, lat2):
 
@@ -75,17 +100,8 @@ def distance_weights(c_lon_target, c_lat_target):
         c_lon[i], c_lat[i] = get_center_latlon(bbox_list[i][0], bbox_list[i][1], bbox_list[i][2], bbox_list[i][3])
         distance[i] = calculate_distance(c_lon[i], c_lat[i], c_lon_target, c_lat_target)
     
-
-    # print("center:", c_lat, "\n", c_lon)
-    # print("distance:", distance)
-    # print("inverse distance", 1.0/distance)
-
-    # distance weights
-    # print("Distance weights:")
-    # weights = normalize_weights(distance)
-
     # inverse distance weights
-    print("Inverse distance weights:")
+    # print("Inverse distance weights:")
     inv_weights = normalize_weights(1.0/distance)
 
     return distance, inv_weights
@@ -95,9 +111,6 @@ def load_images(path):
     
     # Get the list of all files and directories
     dir_list = os.listdir(path)
-    # print("Files and directories in '", path, "' :")
-    # prints all files
-    # print(dir_list)
     
     filenames = dir_list
     image_paths = []
@@ -118,74 +131,15 @@ def calculate_image_similarity(img1, img2, channel):
         
         hist_similarity = cv2.compareHist(cv2.calcHist([img1], [i], None, [256], [0, 256]), cv2.calcHist([img2], [i], None, [256], [0, 256]), cv2.HISTCMP_CORREL)
         similarity += hist_similarity
-        # print(i, "similarity", hist_similarity)
-    #     hist1 = cv2.calcHist([img1], [0], None, [256], [0, 256])
-    #     hist2 = cv2.calcHist([img2], [0], None, [256], [0, 256])
 
-    # similarity = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
-    # gray_similarity = cv2.compareHist(cv2.calcHist([img1_gray], [0], None, [256], [0, 256]), cv2.calcHist([img2_gray], [0], None, [256], [0, 256]), cv2.HISTCMP_CORREL)
     similarity = similarity / channel
-    # print("similarity", similarity)
-    # print("gray_similarity", gray_similarity)
+
     return similarity
-
-# def image_similarity_weights():
-
-#     ref_dirs = os.listdir(IMAGE_DIR)
-    
-#     # ref_paths = load_images(IMAGE_DIR)
-#     target_dir = ref_dirs.pop()
-#     print(target_dir)
-
-#     # target image path list
-#     target_image_path = IMAGE_DIR+target_dir+"/"
-#     target_image_paths = load_images(target_image_path)
-#     # print(target_image_paths)
-
-#     average_similarity = []
-
-#     for i, ref_dir in enumerate(ref_dirs):
-#         print("Image similarity between {} and {}".format(ref_dir, target_image_path))
-#         # reference image path list
-#         ref_image_paths = load_images(IMAGE_DIR+ref_dir+"/")
-#         # print("ref",ref_image_paths)
-#         length = len(ref_image_paths)
-#         # print(length)
-
-#         # pick random image samples from target area 
-#         target_image_samples = random.sample(target_image_paths, length)
-#         # print("samples", target_image_samples)
-
-#         similarity = 0
-
-#         for j, image_path in enumerate(ref_image_paths):
-
-#             # print(i, image_path)
-#             # print("target", target_image_samples[i])
-
-#             img1 = cv2.imread(image_path)
-#             img2 = cv2.imread(target_image_samples[j])
-
-#             similarity += calculate_image_similarity(img1, img2, 3)
-
-#         average_similarity.append(similarity/len(ref_image_paths))
-
-#         # print("Average Similarity between {} and {} is {} \n".format(ref_dir, target_image_path, average_similarity[i]))     
-
-#         # img1 = cv2.imread('img5.png')
-#         # img2 = cv2.imread('img2.png')
-
-#     print("Average Similarity List", average_similarity)
-#     similarity_weights = normalize_weights(np.array(average_similarity))
-
-#     return average_similarity, similarity_weights
-
-
 
 def normalize_weights(weight):
 
     norm_weights = normalize(weight[:,np.newaxis], axis=0, norm='l1').ravel()
-    print("weights:", norm_weights, "\nsum of weights:",sum(norm_weights), "\n")
+    # print("weights:", norm_weights, "\nsum of weights:",sum(norm_weights), "\n")
 
     return norm_weights
 
@@ -204,12 +158,12 @@ def parse_tile_name(name):
 
 def tile_to_ref_average_similarity_weights(tile_id):
 
-    ref_dirs = os.listdir(IMAGE_DIR)
+    ref_dirs = os.listdir(FLAGS.image_path)
     
     target_dir = ref_dirs.pop()
     # print(ref_dirs)
 
-    target_image_path = IMAGE_DIR + target_dir + "/" + tile_id + ".png"
+    target_image_path = FLAGS.image_path + target_dir + "/" + tile_id + ".png"
     tile_image = cv2.imread(target_image_path)
 
     # print("target tile image: ", tile_image)
@@ -217,7 +171,7 @@ def tile_to_ref_average_similarity_weights(tile_id):
 
     for ref_dir in ref_dirs:
 
-        ref_image_path = IMAGE_DIR + ref_dir + "/"
+        ref_image_path = FLAGS.image_path + ref_dir + "/"
         ref_image_paths = load_images(ref_image_path)
         # print(ref_image_paths)
 
@@ -234,7 +188,7 @@ def tile_to_ref_average_similarity_weights(tile_id):
         # print("Average Similarity between {} and {} is {} \n".format(ref_dir, target_image_path, average_similarity)) 
 
     norm_average_similarity = normalize_weights(np.array(average_similarity))
-    print("normalized averaged similarity weight is", norm_average_similarity)
+    # print("normalized averaged similarity weight is", norm_average_similarity)
 
     return norm_average_similarity
 
@@ -259,21 +213,21 @@ def tile_to_ref_distance_weights(tile_id):
 
 def tile_to_ref_attention_weights(tile_id, vit_model):
 
-    target_dir = os.listdir(IMAGE_DIR).pop()
-    target_image_path = IMAGE_DIR + target_dir + "/" + tile_id + ".png"
+    target_dir = os.listdir(FLAGS.image_path).pop()
+    target_image_path = FLAGS.image_path + target_dir + "/" + tile_id + ".png"
     tile_image = cv2.imread(target_image_path)
 
     # replace center image patch
-    tile_image_new_file = './ViT_sample_images/' + "5.png"
+    tile_image_new_file = FLAGS.vit_image_path + '5.png'
     cv2.imwrite(tile_image_new_file, tile_image)
 
-    vit_sample_image_dir = './ViT_sample_images/'
+    vit_sample_image_dir = FLAGS.vit_image_path
 
-    attention_maps_dir = './attention_maps/attention_map'
+    attention_maps_dir = FLAGS.output_path + 'attention_maps/attention_map'
     if not os.path.exists(attention_maps_dir):
         os.makedirs(attention_maps_dir)
 
-    merged_image_dir = './attention_maps/merged_image'
+    merged_image_dir = FLAGS.output_path + 'attention_maps/merged_image'
     if not os.path.exists(merged_image_dir):
         os.makedirs(merged_image_dir)
 
@@ -281,14 +235,14 @@ def tile_to_ref_attention_weights(tile_id, vit_model):
     merged_image = merge_images(vit_sample_image_dir)
     im = Image.fromarray(merged_image, 'RGB')
     im.save(f"{merged_image_dir}/{tile_id}_merged.png")
-    print(f"merging {tile_id}...done!")
+    # print(f"merging {tile_id}...done!")
 
     # generate attention map and weights
-    img_path = merged_image_dir + "/" + tile_id + "_merged.png"
+    output_img_path = merged_image_dir + "/" + tile_id + "_merged.png"
     # image_id = os.path.splitext(os.path.basename(img_path))[0]
     model_type = "dino"
 
-    attention_weights = get_image_attention_weights(tile_id, img_path, vit_model, attention_maps_dir, model_type)
+    attention_weights = get_image_attention_weights(tile_id, output_img_path, vit_model, attention_maps_dir, model_type)
     # delete weight of center patch
     attention_weights.pop(4)
     norm_attention_weights = normalize_weights(np.array(attention_weights))
@@ -297,7 +251,7 @@ def tile_to_ref_attention_weights(tile_id, vit_model):
 
 def tile_to_ref_weights():
 
-    target_tile_image_dir = IMAGE_DIR + "target/"
+    target_tile_image_dir = FLAGS.image_path + "target/"
     tile_dir = os.listdir(target_tile_image_dir)
     # print("tile paths: ", tile_dir)
 
@@ -307,7 +261,7 @@ def tile_to_ref_weights():
     vit_model = load_model(MODELS_ZIP["vit_dino_base16"])
     print("Model loaded.")
 
-    for i, tile_name in enumerate(tile_dir):
+    for i, tile_name in enumerate(tqdm(tile_dir)):
         
         # image id
         tile_id = os.path.splitext(os.path.basename(tile_name))[0]
@@ -339,28 +293,17 @@ def tile_to_ref_weights():
     # print("weight dict list: ", weights_dict_list)
     return weights_dict_list
 
-
-
-if __name__ == '__main__':
-
-
-    # print("distance weights:")
-    # c_box = [10.1926316905051912,5.6555060217455528,10.2352523789601566,5.6722064157053831]
-    # c_lon_target, c_lat_target = get_center_latlon(c_box)
-    # distance, distance_weight = distance_weights(c_lon_target, c_lat_target)
+def main(argv):
     print("Start calculating weights ...")
     start_time = time.time()
     weight_dict_list = tile_to_ref_weights()
     # Writing to json file
-    with open("all_weights.json","w", encoding='utf-8') as file:
+    json_path = FLAGS.output_path + "all_weights.json"
+    with open(json_path, "w", encoding='utf-8') as file:
         json.dump(weight_dict_list, file)
     
     print("done. time used: {}".format(time.time()-start_time))
-    # # Writing to file
-    # with open("weights.txt", "a") as file:
-    #     # Writing data to a file
-    #     file.write("image similarity: \n{}\n".format(similarity))
-    #     file.write("image similarity weights: \n{}\n".format(similarity_weight.tolist()))
-    #     file.write("distance: \n{}\n".format(distance.tolist()))
-    #     file.write("distance weights: \n{}\n".format(distance_weight.tolist()))
-    #     file.write("==================================================================================================================================\n")
+    
+
+if __name__ == '__main__':
+    app.run(main)

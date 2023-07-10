@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.6.1-gpu
+FROM tensorflow/tensorflow:2.5.1-gpu
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Munich
@@ -12,7 +12,8 @@ RUN apt-get update &&\
     apt-get install -y \
     tzdata \
     git \
-    protobuf-compiler
+    protobuf-compiler \
+    ffmpeg libsm6 libxext6
 
 RUN python -m pip install --upgrade pip
 
@@ -20,13 +21,14 @@ RUN pip install cmake
 RUN pip install notebook
 RUN pip install geojson
 RUN pip install cython
+RUN pip install opencv-python
 
 WORKDIR /app
-# COPY . .
+COPY . .
 
-# Install Onject Detection API
-RUN git clone https://github.com/tensorflow/models
-RUN git clone  https://github.com/cocodataset/cocoapi/tree/master
+# Install Object Detection API
+RUN git clone https://github.com/Wjppppp/models.git
+RUN git clone  https://github.com/cocodataset/cocoapi.git
 RUN cd cocoapi/PythonAPI && make &&\
     cp -r pycocotools ../../models/research &&\
     cd ../../models/research &&\
