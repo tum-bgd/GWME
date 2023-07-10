@@ -1,0 +1,1 @@
+{"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[10.230773, 5.664512], [10.230912, 5.664559], [10.230973, 5.664397], [10.230891, 5.664369], [10.230863, 5.66442], [10.230809, 5.664406], [10.230773, 5.664512]]]}, "properties": {"id": null, "label": "building"}}]}
