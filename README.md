@@ -1,4 +1,4 @@
-# GWME
+# [GWME](https://github.com/tum-bgd/GWME)
 
 Geographical Weighted Model Ensemble (GWME)
 
