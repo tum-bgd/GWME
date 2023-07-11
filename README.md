@@ -4,10 +4,12 @@ Geographical Weighted Model Ensemble (GWME)
 
 ## Build
 
+```
 docker build . -t gwme:<TAG>
 docker run -it --gpus all --name gwme -p 8888:8888 -p 6006:6006 --mount type=bind,source="$(pwd)",target=/app gwme:<TAG>
 
 jupyter notebook --ip=0.0.0.0 --no-browser --allow-root --debug
+```
 
 ## Utils
 
