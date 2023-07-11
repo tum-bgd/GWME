@@ -153,7 +153,8 @@ def parse_tile_name(name):
 def tile_to_ref_average_similarity_weights(tile_id):
 
     ref_dirs = os.listdir(FLAGS.image_path)
-    
+
+    ref_dirs.sort()
     target_dir = ref_dirs.pop()
 
     target_image_path = FLAGS.image_path + target_dir + "/" + tile_id + ".png"
@@ -195,7 +196,10 @@ def tile_to_ref_distance_weights(tile_id):
 
 def tile_to_ref_attention_weights(tile_id, vit_model):
 
-    target_dir = os.listdir(FLAGS.image_path).pop()
+    target_dir = os.listdir(FLAGS.image_path)
+    target_dir.sort()
+    target_dir = target_dir.pop()
+
     target_image_path = FLAGS.image_path + target_dir + "/" + tile_id + ".png"
     tile_image = cv2.imread(target_image_path)
 
