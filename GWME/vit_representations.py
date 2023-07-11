@@ -201,7 +201,6 @@ def generate_attention_map(img_path, vit_model, model_type):
 
     # Get the number of heads from the mean distance output.
     num_heads = tf.shape(mean_distances["transformer_block_0_att_mean_dist"])[-1].numpy()
-    # num_heads = 12
 
     # Print the shapes
     print(f"Num Heads: {num_heads}.")
@@ -215,24 +214,6 @@ def generate_attention_map(img_path, vit_model, model_type):
 
     # Generate the attention heatmaps.
     attentions = attention_heatmap(attention_score_dict, preprocessed_img_orig, num_heads, model_type)
-
-    # Plot the maps.
-    # fig, axes = plt.subplots(nrows=3, ncols=4, figsize=(13, 13))
-    # img_count = 0
-
-    # for i in range(3):
-    #     for j in range(4):
-    #         if img_count < len(attentions):
-    #             axes[i, j].imshow(preprocessed_img_orig[0])
-    #             print(attentions[..., img_count])
-    #             axes[i, j].imshow(attentions[..., img_count], cmap="inferno", alpha=0.6)
-    #             axes[i, j].title.set_text(f"Attention head: {img_count}")
-    #             axes[i, j].axis("off")
-    #             img_count += 1
-
-    # print(np.shape(preprocessed_img_orig))
-    # plt.imshow(preprocessed_img_orig[0])
-    # plt.figure()
 
     return preprocessed_img_orig, attentions
 
@@ -253,38 +234,24 @@ def get_image_attention_weights(image_id, img_path, vit_model, output_dir="./", 
     plt.savefig(f'{output_dir}/{image_id}_attention_map.png')
 
     attention_map = avg_attention.numpy()
-    # print(attention_map)
+
     attention_patches = []
     attention_weights = []
-
-    # fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(13, 13))
-    # img_count = 0
 
     for i in range(3):
         for j in range(3):
             attention_patch = attention_map[i*74+1:(i+1)*74+1, j*74+1:(j+1)*74+1]
             attention_patches.append(attention_patch)
             attention_weights.append(np.sum(attention_patch))
-            # print("patch",i,j,np.shape(attention_patch))
 
-    #         plt.figure()
-            # axes[i, j].imshow(attention_patch, interpolation='none')
-            # axes[i, j].title.set_text(f"patch: {i},{j}")
-            # axes[i, j].axis("off")
-            
-            
-    # print(np.shape(attention_patches))
     print(attention_weights)
 
     center_weight = attention_weights[4]
     for i in range(len(attention_weights)):
         attention_weights[i] =  attention_weights[i]/center_weight
         
-    # attention_weights.pop(4)
     print(attention_weights)
 
-    # im = Image.fromarray(attention_map)
-    # im.save("attention_map.png")
     print("attention_map...done!")
 
     return attention_weights
@@ -303,11 +270,4 @@ if __name__ == '__main__':
     print("Model loaded.")
 
     attention_weights = get_image_attention_weights(image_id, img_path, vit_dino_base16, model_type)
-    
-
-
-    # resized_img = tf.image.resize(preprocessed_img_orig[0], (768,768), method="bicubic")
-    # plt.imshow(resized_img)
-    # plt.figure()
-    # plt.show()
 

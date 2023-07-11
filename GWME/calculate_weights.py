@@ -69,7 +69,6 @@ def calculate_distance(lon1, lat1, lon2, lat2):
     lon2 = radians(lon2)
     
     distance = acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos((lon2 - lon1))) * R * 1000
-    # print("distance", distance) # m
 
     return distance
 
@@ -96,12 +95,10 @@ def distance_weights(c_lon_target, c_lat_target):
     
 
     for i in range(0, 8):
-        # print("bbox", bbox_list[i][0], bbox_list[i][1], bbox_list[i][2], bbox_list[i][3])
         c_lon[i], c_lat[i] = get_center_latlon(bbox_list[i][0], bbox_list[i][1], bbox_list[i][2], bbox_list[i][3])
         distance[i] = calculate_distance(c_lon[i], c_lat[i], c_lon_target, c_lat_target)
     
     # inverse distance weights
-    # print("Inverse distance weights:")
     inv_weights = normalize_weights(1.0/distance)
 
     return distance, inv_weights
@@ -115,9 +112,7 @@ def load_images(path):
     filenames = dir_list
     image_paths = []
     for filename in filenames:
-#         image_path = tf.keras.utils.get_file(fname=filename,
-#                                             origin=path + filename,
-#                                             untar=False)
+
         image_path = pathlib.Path(path+filename)
         image_paths.append(str(image_path))
 
@@ -139,7 +134,6 @@ def calculate_image_similarity(img1, img2, channel):
 def normalize_weights(weight):
 
     norm_weights = normalize(weight[:,np.newaxis], axis=0, norm='l1').ravel()
-    # print("weights:", norm_weights, "\nsum of weights:",sum(norm_weights), "\n")
 
     return norm_weights
 
@@ -161,19 +155,16 @@ def tile_to_ref_average_similarity_weights(tile_id):
     ref_dirs = os.listdir(FLAGS.image_path)
     
     target_dir = ref_dirs.pop()
-    # print(ref_dirs)
 
     target_image_path = FLAGS.image_path + target_dir + "/" + tile_id + ".png"
     tile_image = cv2.imread(target_image_path)
 
-    # print("target tile image: ", tile_image)
     average_similarity = []
 
     for ref_dir in ref_dirs:
 
         ref_image_path = FLAGS.image_path + ref_dir + "/"
         ref_image_paths = load_images(ref_image_path)
-        # print(ref_image_paths)
 
         similarity = 0
 
@@ -181,14 +172,10 @@ def tile_to_ref_average_similarity_weights(tile_id):
             
             ref_image = cv2.imread(image_path)
             similarity += calculate_image_similarity(tile_image, ref_image, 3)
-            # print("sum similarity: ", similarity)
 
         average_similarity.append(similarity/len(ref_image_paths))
 
-        # print("Average Similarity between {} and {} is {} \n".format(ref_dir, target_image_path, average_similarity)) 
-
     norm_average_similarity = normalize_weights(np.array(average_similarity))
-    # print("normalized averaged similarity weight is", norm_average_similarity)
 
     return norm_average_similarity
 
@@ -196,15 +183,10 @@ def tile_to_ref_distance_weights(tile_id):
     
     tileX, tileY, zoom = parse_tile_name(tile_id)
 
-    # print("tile id: ", tile_id)
-    # print(tileX, tileY, zoom)
-
     c_pixelX = tileX * 256 + 127
     c_pixelY = tileY * 256 + 127
 
     c_lon, c_lat = pixel_coords_zoom_to_lat_lon(c_pixelX, c_pixelY, zoom)
-
-    # print(c_lon, c_lat)
 
     # distance weights
     distance, distance_weight = distance_weights(c_lon, c_lat)
@@ -235,7 +217,6 @@ def tile_to_ref_attention_weights(tile_id, vit_model):
     merged_image = merge_images(vit_sample_image_dir)
     im = Image.fromarray(merged_image, 'RGB')
     im.save(f"{merged_image_dir}/{tile_id}_merged.png")
-    # print(f"merging {tile_id}...done!")
 
     # generate attention map and weights
     output_img_path = merged_image_dir + "/" + tile_id + "_merged.png"
@@ -253,7 +234,6 @@ def tile_to_ref_weights():
 
     target_tile_image_dir = FLAGS.image_path + "target/"
     tile_dir = os.listdir(target_tile_image_dir)
-    # print("tile paths: ", tile_dir)
 
     weights_dict_list = []
 
@@ -290,7 +270,6 @@ def tile_to_ref_weights():
         
         # break
     
-    # print("weight dict list: ", weights_dict_list)
     return weights_dict_list
 
 def main(argv):

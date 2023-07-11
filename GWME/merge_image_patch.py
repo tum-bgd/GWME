@@ -21,23 +21,15 @@ def load_images(path):
     
     # Get the list of all files and directories
     dir_list = os.listdir(path)
-    # print("Files and directories in '", path, "' :")
-    # prints all files
     print(dir_list)
     
     filenames = dir_list
     image_paths = []
     for filename in filenames:
-#         image_path = tf.keras.utils.get_file(fname=filename,
-#                                             origin=path + filename,
-#                                             untar=False)
+
         image_path = pathlib.Path(path+filename)
         image_paths.append(str(image_path))
     return image_paths
-
-# def parse_tile_name(name):
-#     index, zoom, TileX, TileY = [int(x) for x in name.split(".")]
-#     return index, TileX, TileY, zoom
 
 def load_image_into_numpy_array(path):
     """Load an image from file into a numpy array.
@@ -65,10 +57,6 @@ def merge_images(image_dir):
 
         image_np = load_image_into_numpy_array(image_path)
         image_list.append(image_np)
-        # print('{} Image patch {} loaded... \n'.format(index, image_path), end='')
-        # print(np.shape(image_np), image_np)
-
-    # print("image_list",np.shape(image_list), image_list)
 
     image_row1 = np.concatenate((image_list[0], image_list[1], image_list[2]), axis=1)
     image_row2 = np.concatenate((image_list[3], image_list[4], image_list[5]), axis=1)
@@ -85,7 +73,6 @@ if __name__ == '__main__':
     IMAGE_PATCH_NUMBER_ROW = 3
     IMAGE_PATCH_NUMBER_COL = 3
     CHANNEL = 3
-
     
     merged_image =  merge_images(IMAGE_DIR)  
     

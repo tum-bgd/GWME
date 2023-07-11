@@ -57,16 +57,12 @@ def load_images(path):
     
     # Get the list of all files and directories
     dir_list = os.listdir(path)
-    # print("Files and directories in '", path, "' :")
-    # prints all files
+
     print(dir_list)
     
     filenames = dir_list
     image_paths = []
     for filename in filenames:
-#         image_path = tf.keras.utils.get_file(fname=filename,
-#                                             origin=path + filename,
-#                                             untar=False)
         image_path = pathlib.Path(path+filename)
         image_paths.append(str(image_path))
     return image_paths
@@ -103,8 +99,6 @@ def detection_to_dictionary(task_id, boxes, classes, scores):
         "features":[]
     }
         
-#     print("pred_dict", pred_dict)
-    
     for i, bbox in enumerate(boxes):
 
         bbox = [max(0, min(255, int(x))) for x in bbox[:4]]
@@ -128,10 +122,7 @@ def detection_to_dictionary(task_id, boxes, classes, scores):
             }
         }
         
-#         print(i, new_pred)
         pred_dict["features"].append(new_pred)
-        
-#     print("pred_dict", pred_dict)
     
     output_dir = FLAGS.output_path + "/json"
     if not os.path.exists(output_dir):
@@ -174,7 +165,6 @@ def merge_all_geojson_to_one(input_dir):
         print(input_path)
         with open(input_path, 'r') as input_file:
             merge.extend(geojson.load(input_file)["features"])
-#         print(merge)
 
     geo_collection = geojson.FeatureCollection(merge)
 
@@ -223,7 +213,6 @@ def main(argv):
         num_detections = int(detections.pop('num_detections'))
         detections = {key: value[0, :num_detections].numpy()
                     for key, value in detections.items()}
-    #     print("detections",detections)   
         
         detections['num_detections'] = num_detections
 
@@ -269,10 +258,7 @@ def main(argv):
         bboxes = (selected_boxes_np*256).astype(np.int)    
         detection_to_dictionary(task_id, bboxes, selected_classes_np, selected_scores_np)
         
-        # plt.figure()
-        # plt.imshow(image_np_with_detections)
         print('Done')
-    # plt.show()
 
     input_dir = FLAGS.output_path + "/json/"
     geojson_all = merge_all_geojson_to_one(input_dir)

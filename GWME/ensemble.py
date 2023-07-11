@@ -58,8 +58,6 @@ def load_weights():
 
     with open(FLAGS.weights_path,"r") as file:
         weights_dict_list = json.load(file)
-    
-    # print(type(weights_dict_list))
 
     return weights_dict_list
 
@@ -74,10 +72,7 @@ def ensemble(weights_type):
     json_path = FLAGS.prediction_path + pred_dir[0] + "/json"
     json_list = os.listdir(json_path) # geojson filename list
 
-    # print("json dir: ", json_list)
-
     weights_dict_list = load_weights()
-    # print(weights_dict_list[0])
     
     # ensemble for each tile
     for i, json_filename in enumerate(tqdm(json_list)):
@@ -98,11 +93,9 @@ def ensemble(weights_type):
 
             # predictions/model/json/task_id.geojson
             input_path = FLAGS.prediction_path + pred_model + "/json/" + json_filename 
-            # print("\npredictions from path: ", input_path)
 
             with open(input_path, 'r') as input_file:
                 geojson_dict = geojson.load(input_file)
-                # print("geojson: ", geojson_dict['features'])
             geojson_dict['features']
 
             for feature in geojson_dict['features']:
@@ -110,26 +103,14 @@ def ensemble(weights_type):
                 score.append(feature['properties']['score'])
                 bbox.append(normalize_box(feature['properties']['bbox']))
 
-            # print("bbox: \n", bbox)
-            # print("score: \n", score)
-            # print("label: \n", label)
-
             boxes_list.append(bbox)
             score_list.append(score)
             label_list.append(label)
 
-            # break
-        # print("bbox list: \n", boxes_list)
-        # print("score list: \n", score_list)
-        # print("label list: \n", label_list)
-
         iou_thr = 0.5
         skip_box_thr = 0.0001
         conf_type = "box_and_model_avg"
-        # sigma = 0.1
 
-
-        ################################################################################### weights choice
         weight_dict = weights_dict_list[i]
 
         if weights_type == "average":
@@ -146,13 +127,6 @@ def ensemble(weights_type):
 
         boxes, scores, labels = weighted_boxes_fusion(boxes_list, score_list, label_list, weights=weights, iou_thr=iou_thr, skip_box_thr=skip_box_thr, conf_type=conf_type)
         boxes = (np.array(boxes)*256).astype(np.int)  
-
-        # print("ensemble bbox list: \n", boxes)
-        # print("ensemble score list: \n", scores)
-        # print("ensemble label list: \n", labels)
-
-        # task_id = os.path.splitext(os.path.basename(task_id))[0]
-        # print("task_id", task_id)
 
         output_path = FLAGS.prediction_path + "prediction-ensemble/json/"
         detection_to_geojson(task_id, boxes, labels, scores, output_path)

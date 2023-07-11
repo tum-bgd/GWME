@@ -112,7 +112,6 @@ def reference_to_gdf(dict):
     for i, feature in enumerate(dict['features']):
         geo_series = {
             'ref_id': i,
-#             'label': feature['properties']['label'],
             'type': feature['geometry']['type'],
             'if_detected': False,
             'geometry': get_bbox(Polygon(feature['geometry']['coordinates'][0]))
@@ -156,13 +155,9 @@ def main_eval(prediction_path, reference_path, FILTER_THRESHOLD, IOU_THRESHOLD, 
     pred_geodf = prediction_to_gdf(filtered_pred_geojson)
     ref_geodf = reference_to_gdf(ref_geojson)
 
-    # print("pred_geodf", pred_geodf)
-    # print("ref_geodf", ref_geodf)
-
     TP = 0
 
     intersection_df = gpd.overlay(pred_geodf, ref_geodf, how='intersection')
-    # print("intersection: \n", intersection_df)
 
     for i, intersect in enumerate(tqdm(intersection_df.itertuples())):
         pred_id = intersect.prediction_id

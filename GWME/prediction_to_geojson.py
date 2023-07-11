@@ -45,9 +45,7 @@ def detection_to_geojson(task_id, boxes, classes, scores, output_path):
         "type": "FeatureCollection",      
         "features":[]
     }
-        
-#     print("pred_dict", pred_dict)
-    
+
     for i, bbox in enumerate(boxes):
 
         bbox = [max(0, min(255, int(x))) for x in bbox[:4]]
@@ -71,10 +69,7 @@ def detection_to_geojson(task_id, boxes, classes, scores, output_path):
             }
         }
         
-#         print(i, new_pred)
-        pred_dict["features"].append(new_pred)
-        
-#     print("pred_dict", pred_dict)
+        pred_dict["features"].append(new_pred)     
     
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -92,7 +87,6 @@ def save_dict_to_geojson(dictionary, out_path):
 def merge_all_geojson_to_one(input_dir):
     
     file_list = os.listdir(input_dir)
-    # print(file_list)
    
     merge = list()
     print("start merging geojson ...")
@@ -101,7 +95,6 @@ def merge_all_geojson_to_one(input_dir):
         print(input_path)
         with open(input_path, 'r') as input_file:
             merge.extend(geojson.load(input_file)["features"])
-#         print(merge)
 
     geo_collection = geojson.FeatureCollection(merge)
 
