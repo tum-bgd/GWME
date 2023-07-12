@@ -18,7 +18,7 @@ Usage Case:
             --output_path="./case_study/cameroon/weights/"
 """
 
-from math import sin, cos, acos, atan2, radians, pi, atan, exp
+from math import sin, cos, acos, radians
 from sklearn.preprocessing import normalize
 import numpy as np
 from PIL import Image
@@ -26,15 +26,13 @@ import time
 import cv2
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    # Suppress TensorFlow logging (1)
-import pathlib
-import random
 import json
 from tqdm import tqdm
-from merge_image_patch import merge_images
-from vit_representations import get_image_attention_weights, load_model, MODELS_ZIP
-
 from absl import app
 from absl import flags
+from vit_representations import get_image_attention_weights, load_model, MODELS_ZIP
+from merge_image_patch import merge_images
+from utils import load_images, pixel_coords_zoom_to_lat_lon, parse_tile_name
 
 FLAGS = flags.FLAGS
 
@@ -46,8 +44,8 @@ flags.mark_flag_as_required('image_path')
 flags.mark_flag_as_required('vit_image_path')
 flags.mark_flag_as_required('output_path')
 
-def get_center_latlon(lon1, lat1, lon2, lat2):
 
+def get_center_latlon(lon1, lat1, lon2, lat2):
     center_lat = abs(lat1 - lat2)/2 + min(lat1, lat2)
     center_lon = abs(lon1 - lon2)/2 + min(lon1, lon2)
 
@@ -55,28 +53,27 @@ def get_center_latlon(lon1, lat1, lon2, lat2):
 
 
 def calculate_distance(lon1, lat1, lon2, lat2):
-    """
-    Calculate distance in meters between two latitude, longitude points.
+    """Calculate distance in meters between two latitude, longitude points.
 
     Law of cosines: d = acos( sin φ1 ⋅ sin φ2 + cos φ1 ⋅ cos φ2 ⋅ cos Δλ ) ⋅ R
-    ACOS( SIN(lat1)*SIN(lat2) + COS(lat1)*COS(lat2)*COS(lon2-lon1) ) * 6371000
-    """
+    ACOS( SIN(lat1)*SIN(lat2) + COS(lat1)*COS(lat2)*COS(lon2-lon1) ) * 6371000"""
     R = 6371.0
 
     lat1 = radians(lat1)
     lon1 = radians(lon1)
     lat2 = radians(lat2)
     lon2 = radians(lon2)
-    
-    distance = acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos((lon2 - lon1))) * R * 1000
 
-    return distance
+    return (
+        acos(
+            sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos((lon2 - lon1))
+        )
+        * R
+        * 1000
+    )
 
 def distance_weights(c_lon_target, c_lat_target):
-    """
-    center_box: bbox [left, top, right, bottom] of the target area.
-    """
-
+    """center_box: bbox [left, top, right, bottom] of the target area."""
     c_lat = np.zeros(8)
     c_lon = np.zeros(8)
     distance = np.zeros(8)
@@ -92,66 +89,32 @@ def distance_weights(c_lon_target, c_lat_target):
         [10.2613935439247506,5.6314816109111181,10.2656648067598848,5.6353477536127228]
     ] 
 
-    
-
-    for i in range(0, 8):
+    for i in range(8):
         c_lon[i], c_lat[i] = get_center_latlon(bbox_list[i][0], bbox_list[i][1], bbox_list[i][2], bbox_list[i][3])
         distance[i] = calculate_distance(c_lon[i], c_lat[i], c_lon_target, c_lat_target)
-    
+
     # inverse distance weights
     inv_weights = normalize_weights(1.0/distance)
 
     return distance, inv_weights
 
-# Load images
-def load_images(path):
-    
-    # Get the list of all files and directories
-    dir_list = os.listdir(path)
-    
-    filenames = dir_list
-    image_paths = []
-    for filename in filenames:
-
-        image_path = pathlib.Path(path+filename)
-        image_paths.append(str(image_path))
-
-    return image_paths
 
 def calculate_image_similarity(img1, img2, channel):
-    
     similarity = 0
 
     for i in range(channel):
-        
         hist_similarity = cv2.compareHist(cv2.calcHist([img1], [i], None, [256], [0, 256]), cv2.calcHist([img2], [i], None, [256], [0, 256]), cv2.HISTCMP_CORREL)
         similarity += hist_similarity
 
-    similarity = similarity / channel
+    return similarity / channel
 
-    return similarity
 
 def normalize_weights(weight):
 
-    norm_weights = normalize(weight[:,np.newaxis], axis=0, norm='l1').ravel()
+    return normalize(weight[:,np.newaxis], axis=0, norm='l1').ravel()
 
-    return norm_weights
-
-def pixel_coords_zoom_to_lat_lon(PixelX, PixelY, zoom):
-    MapSize = 256 * pow(2, zoom)
-    x = (PixelX / MapSize) - 0.5
-    y = 0.5 - (PixelY / MapSize)
-    lon = 360 * x
-    lat = 90 - 360 * atan(exp(-y * 2 * pi)) / pi
-
-    return lon, lat
-
-def parse_tile_name(name):
-    zoom, TileX, TileY = [int(x) for x in name.split(".")]
-    return TileX, TileY, zoom
 
 def tile_to_ref_average_similarity_weights(tile_id):
-
     ref_dirs = os.listdir(FLAGS.image_path)
 
     ref_dirs.sort()
@@ -163,25 +126,21 @@ def tile_to_ref_average_similarity_weights(tile_id):
     average_similarity = []
 
     for ref_dir in ref_dirs:
-
         ref_image_path = FLAGS.image_path + ref_dir + "/"
         ref_image_paths = load_images(ref_image_path)
 
         similarity = 0
 
         for image_path in ref_image_paths:
-            
             ref_image = cv2.imread(image_path)
             similarity += calculate_image_similarity(tile_image, ref_image, 3)
 
         average_similarity.append(similarity/len(ref_image_paths))
 
-    norm_average_similarity = normalize_weights(np.array(average_similarity))
+    return normalize_weights(np.array(average_similarity))
 
-    return norm_average_similarity
 
 def tile_to_ref_distance_weights(tile_id):
-    
     tileX, tileY, zoom = parse_tile_name(tile_id)
 
     c_pixelX = tileX * 256 + 127
@@ -190,12 +149,12 @@ def tile_to_ref_distance_weights(tile_id):
     c_lon, c_lat = pixel_coords_zoom_to_lat_lon(c_pixelX, c_pixelY, zoom)
 
     # distance weights
-    distance, distance_weight = distance_weights(c_lon, c_lat)
+    _, distance_weight = distance_weights(c_lon, c_lat)
 
     return distance_weight
 
-def tile_to_ref_attention_weights(tile_id, vit_model):
 
+def tile_to_ref_attention_weights(tile_id, vit_model):
     target_dir = os.listdir(FLAGS.image_path)
     target_dir.sort()
     target_dir = target_dir.pop()
@@ -204,16 +163,16 @@ def tile_to_ref_attention_weights(tile_id, vit_model):
     tile_image = cv2.imread(target_image_path)
 
     # replace center image patch
-    tile_image_new_file = FLAGS.vit_image_path + '5.png'
+    tile_image_new_file = f'{FLAGS.vit_image_path}5.png'
     cv2.imwrite(tile_image_new_file, tile_image)
 
     vit_sample_image_dir = FLAGS.vit_image_path
 
-    attention_maps_dir = FLAGS.output_path + 'attention_maps/attention_map'
+    attention_maps_dir = f'{FLAGS.output_path}attention_maps/attention_map'
     if not os.path.exists(attention_maps_dir):
         os.makedirs(attention_maps_dir)
 
-    merged_image_dir = FLAGS.output_path + 'attention_maps/merged_image'
+    merged_image_dir = f'{FLAGS.output_path}attention_maps/merged_image'
     if not os.path.exists(merged_image_dir):
         os.makedirs(merged_image_dir)
 
@@ -223,20 +182,19 @@ def tile_to_ref_attention_weights(tile_id, vit_model):
     im.save(f"{merged_image_dir}/{tile_id}_merged.png")
 
     # generate attention map and weights
-    output_img_path = merged_image_dir + "/" + tile_id + "_merged.png"
+    output_img_path = f"{merged_image_dir}/{tile_id}_merged.png"
     # image_id = os.path.splitext(os.path.basename(img_path))[0]
     model_type = "dino"
 
     attention_weights = get_image_attention_weights(tile_id, output_img_path, vit_model, attention_maps_dir, model_type)
     # delete weight of center patch
     attention_weights.pop(4)
-    norm_attention_weights = normalize_weights(np.array(attention_weights))
 
-    return norm_attention_weights
+    return normalize_weights(np.array(attention_weights))
+
 
 def tile_to_ref_weights():
-
-    target_tile_image_dir = FLAGS.image_path + "target/"
+    target_tile_image_dir = f"{FLAGS.image_path}target/"
     tile_dir = os.listdir(target_tile_image_dir)
 
     weights_dict_list = []
@@ -246,11 +204,10 @@ def tile_to_ref_weights():
     print("Model loaded.")
 
     for i, tile_name in enumerate(tqdm(tile_dir)):
-        
         # image id
         tile_id = os.path.splitext(os.path.basename(tile_name))[0]
 
-        print("\nCalculating weights for {}, {}\n".format(i, tile_id))
+        print(f"\nCalculating weights for {i}, {tile_id}\n")
 
         # # distance weights
         distance_weights = tile_to_ref_distance_weights(tile_id)
@@ -271,22 +228,23 @@ def tile_to_ref_weights():
         weights_dict_list.append(new_weight)
 
         print("\n",tile_name, new_weight)
-        
+
         # break
-    
+
     return weights_dict_list
+
 
 def main(argv):
     print("Start calculating weights ...")
     start_time = time.time()
     weight_dict_list = tile_to_ref_weights()
     # Writing to json file
-    json_path = FLAGS.output_path + "all_weights.json"
+    json_path = f"{FLAGS.output_path}all_weights.json"
     with open(json_path, "w", encoding='utf-8') as file:
         json.dump(weight_dict_list, file)
-    
-    print("done. time used: {}".format(time.time()-start_time))
-    
+
+    print(f"done. time used: {time.time() - start_time}")
+
 
 if __name__ == '__main__':
     app.run(main)

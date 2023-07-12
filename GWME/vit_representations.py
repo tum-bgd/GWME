@@ -6,22 +6,18 @@
 # Description: Inference of pre-trained DINO/ViT, and calculate attention weights.
 # =======================================================================================================================================================
 
-import zipfile
-from io import BytesIO
-
-import cv2
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    # Suppress TensorFlow logging (1)
+import zipfile
+from io import BytesIO
 import matplotlib.pyplot as plt
 import numpy as np
 import requests
-import tensorflow as tf
 from PIL import Image
-from sklearn.preprocessing import MinMaxScaler
+import tensorflow as tf
 from tensorflow import keras
 
 # Constants
-
 RESOLUTION = 224
 PATCH_SIZE = 16
 GITHUB_RELEASE = "https://github.com/sayakpaul/probing-vits/releases/download/v1.0.0/probing_vits.zip"
@@ -33,7 +29,6 @@ MODELS_ZIP = {
 }
 
 # Data utilities
-
 crop_layer = keras.layers.CenterCrop(RESOLUTION, RESOLUTION)
 norm_layer = keras.layers.Normalization(
     mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
@@ -52,8 +47,7 @@ def preprocess_image(image, model_type, size=RESOLUTION):
         image = rescale_layer(image)
 
     # Resize the image using bicubic interpolation.
-    resize_size = int((224 / 224) * size)
-    image = tf.image.resize(image, (resize_size, resize_size), method="bicubic")
+    image = tf.image.resize(image, (int(size), int(size)), method="bicubic")
 
     # Crop the image.
     image = crop_layer(image)
@@ -72,18 +66,17 @@ def load_image_from_url(url, model_type):
     preprocessed_image = preprocess_image(image, model_type)
     return image, preprocessed_image
 
+
 def load_image_from_local(path, model_type):
     # Credit: Willi Gierke
-#     response = requests.get(url)
+    # response = requests.get(url)
     image = Image.open(path)
     preprocessed_image = preprocess_image(image, model_type)
     return image, preprocessed_image
 
-# # Load a model
-
 
 def load_model(model_path: str) -> tf.keras.Model:
-    
+    '''Load a model'''
     if not os.path.exists("Probing_ViTs/"):
         # download models
         zip_path = tf.keras.utils.get_file(
@@ -107,8 +100,8 @@ def load_model(model_path: str) -> tf.keras.Model:
     return keras.Model(inputs, outputs=[outputs, attention_weights])
 
 
-# Mean attention distance
 def compute_distance_matrix(patch_size, num_patches, length):
+    '''Mean attention distance'''
     distance_matrix = np.zeros((num_patches, num_patches))
     for i in range(num_patches):
         for j in range(num_patches):
@@ -152,8 +145,8 @@ def compute_mean_attention_dist(patch_size, attention_weights, model_type):
     return mean_distances
 
 
-# Attention heatmaps
 def attention_heatmap(attention_score_dict, image, num_heads, model_type="dino"):
+    '''Attention heatmaps'''
     num_tokens = 2 if "distilled" in model_type else 1
 
     # Sort the Transformer blocks in order of their depth.
@@ -176,14 +169,14 @@ def attention_heatmap(attention_score_dict, image, num_heads, model_type="dino")
     attentions = tf.image.resize(
         attentions, size=(h_featmap * PATCH_SIZE, w_featmap * PATCH_SIZE)
     )
+    
     return attentions
 
-def generate_attention_map(img_path, vit_model, model_type):
 
+def generate_attention_map(img_path, vit_model, model_type):
     # Preprocess the same image but with normlization.
     # img_url = "https://dl.fbaipublicfiles.com/dino/img.png"
     # image, preprocessed_image = load_image_from_url(img_url, model_type="dino")
-
     image, preprocessed_image = load_image_from_local(img_path, model_type=model_type)
 
     # Grab the predictions.
@@ -219,7 +212,6 @@ def generate_attention_map(img_path, vit_model, model_type):
 
 
 def get_image_attention_weights(image_id, img_path, vit_model, output_dir="./", model_type="dino"):
-    
     preprocessed_img_orig, attentions = generate_attention_map(img_path, vit_model, model_type)
 
     # average attention of 12 heads attention
@@ -256,8 +248,8 @@ def get_image_attention_weights(image_id, img_path, vit_model, output_dir="./", 
 
     return attention_weights
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     img_path = "merged_02.png"
     image_id = os.path.splitext(os.path.basename(img_path))[0]
     model_type = "dino"
@@ -270,4 +262,3 @@ if __name__ == '__main__':
     print("Model loaded.")
 
     attention_weights = get_image_attention_weights(image_id, img_path, vit_dino_base16, model_type)
-

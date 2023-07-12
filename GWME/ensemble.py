@@ -18,22 +18,17 @@ Usage Case:
             --mode="average"
 """
 
-
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    
 import warnings
-import pathlib
 import numpy as np
 import json
-import math
 from tqdm import tqdm
 import geojson
 from ensemble_boxes import *
-from prediction_to_geojson import detection_to_geojson, merge_all_geojson_to_one
-
-
 from absl import app
 from absl import flags
+from utils import pixel_coords_to_latlon, save_dict_to_geojson, merge_all_geojson_to_one
 
 FLAGS = flags.FLAGS
 
@@ -47,19 +42,59 @@ flags.mark_flag_as_required('mode')
 
 IMAGE_SIZE = 256
 
+
 def normalize_box(box):
-
     (x1, y1, x2, y2) = box[0]/IMAGE_SIZE, box[1]/IMAGE_SIZE, box[2]/IMAGE_SIZE, box[3]/IMAGE_SIZE
-    norm_box = [x1, y1, x2, y2]
 
-    return norm_box
+    return [x1, y1, x2, y2]
+
 
 def load_weights():
-
     with open(FLAGS.weights_path,"r") as file:
         weights_dict_list = json.load(file)
 
     return weights_dict_list
+
+
+def detection_to_geojson(task_id, boxes, classes, scores, output_path):
+    pred_dict = {
+        "type": "FeatureCollection",      
+        "features":[]
+    }
+
+    for i, bbox in enumerate(boxes):
+
+        bbox = [max(0, min(255, int(x))) for x in bbox[:4]]
+        (left, right, top, bottom) = (int(bbox[0]), int(bbox[2]), int(bbox[1]), int(bbox[3]))
+        bbox_polygon=[(left, top), (left, bottom), (right, bottom), (right, top), (left, top)]
+
+        bbox_coords = pixel_coords_to_latlon(task_id, bbox_polygon)
+
+        new_pred = {
+            "type": "Feature",
+            "properties": {
+                "task_id": task_id,
+                "prediction_id": i,
+                "prediction_class": int(classes[i]),
+                "score": float(scores[i]),
+                "bbox": bbox,
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [bbox_coords]
+            }
+        }
+
+        pred_dict["features"].append(new_pred)     
+
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    jsonfile = f"{task_id}.geojson"
+    out_path = os.path.join(output_path, jsonfile)
+
+    save_dict_to_geojson(pred_dict, out_path)
+
 
 def ensemble(weights_type):
     pred_dir = os.listdir(FLAGS.prediction_path)
@@ -73,10 +108,9 @@ def ensemble(weights_type):
     json_list = os.listdir(json_path) # geojson filename list
 
     weights_dict_list = load_weights()
-    
+
     # ensemble for each tile
     for i, json_filename in enumerate(tqdm(json_list)):
-
         # bbox, score, label combined from multiple models
         boxes_list = []
         score_list = []
@@ -85,7 +119,6 @@ def ensemble(weights_type):
         task_id = os.path.splitext(os.path.basename(json_filename))[0]
 
         for pred_model in pred_dir:
-
             # bbox, score, label from single model
             bbox = []
             score = []
@@ -128,27 +161,25 @@ def ensemble(weights_type):
         boxes, scores, labels = weighted_boxes_fusion(boxes_list, score_list, label_list, weights=weights, iou_thr=iou_thr, skip_box_thr=skip_box_thr, conf_type=conf_type)
         boxes = (np.array(boxes)*256).astype(np.int)  
 
-        output_path = FLAGS.prediction_path + "prediction-ensemble/json/"
+        output_path = f"{FLAGS.prediction_path}prediction-ensemble/json/"
         detection_to_geojson(task_id, boxes, labels, scores, output_path)
 
-        # break
-
-    input_dir = FLAGS.prediction_path + "prediction-ensemble/json/"
+    input_dir = f"{FLAGS.prediction_path}prediction-ensemble/json/"
     geojson_all = merge_all_geojson_to_one(input_dir)
 
-    output_path = FLAGS.prediction_path + "prediction-ensemble/merged_prediction.geojson"
+    output_path = (
+        f"{FLAGS.prediction_path}prediction-ensemble/merged_prediction.geojson"
+    )
     with open(output_path, 'w', encoding='utf-8') as output_file:
         geojson.dump(geojson_all, output_file)
 
     print("done")
 
-    return
 
 def main(argv):
     print("hello, ensemble")
     ensemble(FLAGS.mode)
 
+
 if __name__ == "__main__":
     app.run(main)
-
-    
