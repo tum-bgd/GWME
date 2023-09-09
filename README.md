@@ -44,11 +44,12 @@ jupyter notebook --ip=0.0.0.0 --no-browser --allow-root --debug
 
 ## Citation
 
-Hao Li. Jiapan Wang, Johann Maximilian Zollner, Gengchen Mai, Ni Lao, and Martin Werner. 2023. Rethink Geographical Generalizability with Unsupervised Self-Attention Model Ensemble: A Case Study of OpenStreetMap Missing Building Detection in Africa.
+Hao Li. Jiapan Wang, Johann Maximilian Zollner, Gengchen Mai, Ni Lao, and Martin Werner. 2023. Rethink Geographical Generalizability with Unsupervised Self-Attention Model Ensemble: A Case Study of OpenStreetMap Missing Building Detection in Africa. In Proceedings of the 31th International Conference on Advances in Geographic Information Systems (ACM SIGSPATIAL '23)
 
 ## Contact
 
 Hao Li: [hao_bgd.li@tum.de](mailto:hao_bgd.li@tum.de)  
+
 Hao Li is with the Technische Universität München, Professur für Big Geospatial Data Management, Lise-Meitner-Str. 9, 85521 Ottobrunn
 
 
